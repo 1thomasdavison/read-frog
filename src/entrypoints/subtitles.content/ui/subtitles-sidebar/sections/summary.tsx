@@ -2,6 +2,7 @@ import { IconFileTextAi } from "@tabler/icons-react"
 import { useQuery } from "@tanstack/react-query"
 import { useAtomValue } from "jotai"
 import { match } from "ts-pattern"
+import { browser } from "#imports"
 import { MarkdownRenderer } from "@/components/markdown-renderer"
 import { Button } from "@/components/ui/base-ui/button"
 import { Empty, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/base-ui/empty"
@@ -9,7 +10,11 @@ import { Skeleton } from "@/components/ui/base-ui/skeleton"
 import { configFieldsAtomMap } from "@/utils/atoms/config"
 import { featureProviderRefAtom } from "@/utils/atoms/provider"
 import { i18n } from "@/utils/i18n"
-import { videoSummaryQueryKey } from "@/utils/subtitles/video-summary"
+import { sendMessage } from "@/utils/message"
+import {
+  checkVideoSummaryAvailability,
+  videoSummaryQueryKey,
+} from "@/utils/subtitles/video-summary"
 import { currentVideoIdAtom, subtitlesStore, videoSummaryPartialAtom } from "../../../atoms"
 import { useSubtitlesUI } from "../../subtitles-ui-context"
 
@@ -58,8 +63,19 @@ export function SummarySection() {
   const videoId = useAtomValue(currentVideoIdAtom, { store: subtitlesStore })
   const partial = useAtomValue(videoSummaryPartialAtom, { store: subtitlesStore })
 
+  // Owned here rather than by the menu entry: the transcript tab needs no
+  // model, so an unusable provider must not keep the panel shut.
+  const provider = useQuery({
+    queryKey: ["subtitles", "summary-provider", providerRef],
+    queryFn: checkVideoSummaryAvailability,
+    retry: false,
+    staleTime: Infinity,
+    meta: { suppressToast: true },
+  })
+
   const query = useQuery({
     queryKey: videoSummaryQueryKey(videoId, language.targetCode, providerRef),
+    enabled: provider.data?.status === "ok",
     queryFn: async () => {
       const summary = await generateVideoSummary()
       if (!summary) {
@@ -72,6 +88,32 @@ export function SummarySection() {
     gcTime: Infinity,
     meta: { suppressToast: true },
   })
+
+  if (provider.data && provider.data.status !== "ok") {
+    return match(provider.data)
+      .with({ status: "needsModel" }, () => (
+        <StatusCard icon={<IconFileTextAi />} title={i18n.t("subtitles.sidebar.summary.needsModel")}>
+          <Button
+            type="button"
+            variant="brand"
+            size="sm"
+            onClick={() =>
+              void sendMessage("openPage", {
+                url: browser.runtime.getURL("/options.html#/api-providers"),
+                active: true,
+              })
+            }
+          >
+            {i18n.t("subtitles.sidebar.summary.openSettings")}
+          </Button>
+        </StatusCard>
+      ))
+      // Already actionable; a settings link would point away from it.
+      .with({ status: "hostedUnavailable" }, ({ message }) => (
+        <StatusCard icon={<IconFileTextAi />} title={message} />
+      ))
+      .exhaustive()
+  }
 
   return match(query)
     .with({ status: "pending" }, () =>
