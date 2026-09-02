@@ -37,6 +37,7 @@ import {
   currentTimeMsAtom,
   currentVideoIdAtom,
   sourceTrackAtom,
+  translatedTrackAtom,
   videoSummaryPartialAtom,
   subtitlesPositionAtom,
   subtitlesSettingsPanelOpenAtom,
@@ -635,10 +636,11 @@ export class UniversalVideoAdapter implements SubtitlesProvidersAdapter {
     }
 
     if (!scheduler || !isSchedulerActive) {
-      const operationId = this.switchOperationId
+      const operationId = ++this.switchOperationId
       this.clearSourceCache()
       this.fetcher.cleanup()
       subtitlesStore.set(sourceTrackAtom, [])
+      subtitlesStore.set(translatedTrackAtom, [])
       await this.getOrLoadSourceSubtitles()
       if (operationId !== this.switchOperationId) {
         return
