@@ -1,5 +1,11 @@
 # @read-frog/extension
 
+## 1.46.8
+
+### Patch Changes
+
+- [#2147](https://github.com/mengxi-ream/read-frog/pull/2147) [`7ca0122`](https://github.com/mengxi-ream/read-frog/commit/7ca0122fa382186f69908accb972f1f09ee1686c) Thanks [@taiiiyang](https://github.com/taiiiyang)! - fix(subtitles): refuse AI subtitles for live stream replays with a toast
+
 ## 1.46.7
 
 ### Patch Changes
